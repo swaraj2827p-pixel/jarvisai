@@ -63,6 +63,7 @@ test('health and tool discovery', async (t) => {
     .sort();
   assert.deepEqual(names, [
     'calculate',
+    'fetch_url',
     'get_current_time',
     'get_system_info',
     'recall',

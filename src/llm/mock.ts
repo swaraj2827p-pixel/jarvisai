@@ -17,6 +17,7 @@ const SYSTEM_INFO_PATTERN =
   /\b(system info|system information|computer specs|machine info|what system|operating system|os version)\b/i;
 const REMEMBER_PATTERN = /^remember\s+(?:that\s+)?(.+?)\s*(?:=|:)\s*(.+)$/i;
 const RECALL_PATTERN = /^recall\s+(?:the\s+)?(.+)$/i;
+const URL_PATTERN = /https?:\/\/[^\s"'<>]+/i;
 
 export function createMockProvider(): LlmProvider {
   return {
@@ -83,6 +84,15 @@ function chooseToolCall(text: string): ToolCall | undefined {
     };
   }
 
+  const link = URL_PATTERN.exec(text)?.[0];
+  if (link) {
+    return {
+      id: randomUUID(),
+      name: 'fetch_url',
+      arguments: { url: link.replace(/[.,;:!?)\]]+$/, '') },
+    };
+  }
+
   if (TIME_PATTERN.test(text)) {
     const timezone = TIMEZONE_PATTERN.exec(text)?.[1];
     return {
@@ -120,7 +130,8 @@ function summarizeToolResults(messages: ChatMessage[]): string {
       }
       if (!isRecord(payload)) return 'A tool returned an unexpected result.';
       if (payload.ok === false) {
-        const reason = typeof payload.error === 'string' ? payload.error : 'unknown error';
+        const reason =
+          typeof payload.error === 'string' ? payload.error.replace(/\.$/, '') : 'unknown error';
         return `I could not complete ${message.toolName ?? 'the tool call'}: ${reason}.`;
       }
 
@@ -146,6 +157,11 @@ function summarizeToolResults(messages: ChatMessage[]): string {
           data.architecture ?? 'unknown',
         )}) with Node ${String(data.nodeVersion ?? 'unknown')}.`;
       }
+      if (typeof data.url === 'string' && typeof data.text === 'string') {
+        const title = typeof data.title === 'string' && data.title ? `"${data.title}" ` : '';
+        const snippet = data.text.slice(0, 600);
+        return `Fetched ${title}${data.url} (HTTP ${String(data.status ?? '?')}): ${snippet}`;
+      }
       return 'The tool finished successfully.';
     })
     .join(' ');
@@ -154,9 +170,9 @@ function summarizeToolResults(messages: ChatMessage[]): string {
 function chooseReply(text: string): string {
   if (!text) return 'At your service. (mock provider)';
   if (/^(hi|hello|hey|yo)\b/i.test(text)) {
-    return 'At your service. Try "calc: (12 + 8) * 3", "what time is it in Europe/London", "system info", or "remember name = Tony Stark". (mock provider)';
+    return 'At your service. Try "calc: (12 + 8) * 3", "what time is it in Europe/London", "system info", "read https://example.com", or "remember name = Tony Stark". (mock provider)';
   }
-  return `I heard: "${text}". This is the mock provider, so it does not generate real reasoning. Try "calc: ...", ask for the time or system info, use "remember key = value" / "recall key", or set LLM_PROVIDER=openai or anthropic.`;
+  return `I heard: "${text}". This is the mock provider, so it does not generate real reasoning. Try "calc: ...", ask for the time or system info, paste a public link, use "remember key = value" / "recall key", or set LLM_PROVIDER=gemini (free), openai, anthropic or xai.`;
 }
 
 function finalResult(content: string, promptTokens: number): CompletionResult {

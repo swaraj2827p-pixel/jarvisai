@@ -1,6 +1,7 @@
 import type { MemoryStore } from '../memory/memory-store.ts';
 import { calculateTool } from './calculator.ts';
 import { currentTimeTool } from './current-time.ts';
+import { createFetchUrlTool } from './fetch-url.ts';
 import { createRecallTool, createRememberTool } from './memory.ts';
 import { systemInfoTool } from './system-info.ts';
 import { createToolRegistry, type ToolRegistry } from './registry.ts';
@@ -12,6 +13,7 @@ export function createDefaultToolRegistry(memory: MemoryStore): ToolRegistry {
     currentTimeTool,
     calculateTool,
     systemInfoTool,
+    createFetchUrlTool(),
     createRememberTool(memory),
     createRecallTool(memory),
   ]);

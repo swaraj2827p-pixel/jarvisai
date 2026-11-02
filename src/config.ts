@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export type LlmProviderName = 'mock' | 'openai' | 'anthropic' | 'xai';
+export type LlmProviderName = 'mock' | 'openai' | 'anthropic' | 'xai' | 'gemini';
 
 export interface Config {
   port: number;
@@ -18,6 +18,9 @@ export interface Config {
   xaiApiKey?: string;
   xaiBaseUrl: string;
   xaiModel: string;
+  geminiApiKey?: string;
+  geminiBaseUrl: string;
+  geminiModel: string;
   apiKey?: string;
   rateLimitMax: number;
   rateLimitWindowMs: number;
@@ -40,7 +43,7 @@ const EnvSchema = z
       .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
       .default('info'),
     BODY_LIMIT_BYTES: z.coerce.number().int().positive().default(262_144),
-    LLM_PROVIDER: z.enum(['mock', 'openai', 'anthropic', 'xai']).default('mock'),
+    LLM_PROVIDER: z.enum(['mock', 'openai', 'anthropic', 'xai', 'gemini']).default('mock'),
     LLM_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
     OPENAI_API_KEY: optionalString,
     OPENAI_BASE_URL: z.string().trim().min(1).default('https://api.openai.com/v1'),
@@ -51,6 +54,13 @@ const EnvSchema = z
     XAI_API_KEY: optionalString,
     XAI_BASE_URL: z.string().trim().min(1).default('https://api.x.ai/v1'),
     XAI_MODEL: z.string().trim().min(1).default('grok-4'),
+    GEMINI_API_KEY: optionalString,
+    GEMINI_BASE_URL: z
+      .string()
+      .trim()
+      .min(1)
+      .default('https://generativelanguage.googleapis.com/v1beta/openai'),
+    GEMINI_MODEL: z.string().trim().min(1).default('gemini-2.5-flash'),
     JARVIS_API_KEY: optionalString,
     RATE_LIMIT_MAX: z.coerce.number().int().positive().default(60),
     RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
@@ -81,6 +91,13 @@ const EnvSchema = z
         path: ['XAI_API_KEY'],
       });
     }
+    if (env.LLM_PROVIDER === 'gemini' && !env.GEMINI_API_KEY) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'required when LLM_PROVIDER=gemini',
+        path: ['GEMINI_API_KEY'],
+      });
+    }
   });
 
 export function loadConfig(env: Record<string, string | undefined> = process.env): Config {
@@ -109,6 +126,9 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     xaiApiKey: value.XAI_API_KEY,
     xaiBaseUrl: value.XAI_BASE_URL,
     xaiModel: value.XAI_MODEL,
+    geminiApiKey: value.GEMINI_API_KEY,
+    geminiBaseUrl: value.GEMINI_BASE_URL,
+    geminiModel: value.GEMINI_MODEL,
     apiKey: value.JARVIS_API_KEY,
     rateLimitMax: value.RATE_LIMIT_MAX,
     rateLimitWindowMs: value.RATE_LIMIT_WINDOW_MS,

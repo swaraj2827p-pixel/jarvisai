@@ -1,5 +1,6 @@
 import type { Config } from '../config.ts';
 import { createAnthropicProvider } from './anthropic.ts';
+import { createGeminiProvider } from './gemini.ts';
 import { createMockProvider } from './mock.ts';
 import { createOpenAiProvider } from './openai.ts';
 import { createXaiProvider } from './xai.ts';
@@ -33,6 +34,15 @@ export function createProvider(config: Config): LlmProvider {
         apiKey: config.xaiApiKey,
         baseUrl: config.xaiBaseUrl,
         model: config.xaiModel,
+      });
+    case 'gemini':
+      if (!config.geminiApiKey) {
+        throw new Error('GEMINI_API_KEY is required for the gemini provider.');
+      }
+      return createGeminiProvider({
+        apiKey: config.geminiApiKey,
+        baseUrl: config.geminiBaseUrl,
+        model: config.geminiModel,
       });
     case 'mock':
       return createMockProvider();

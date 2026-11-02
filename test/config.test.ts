@@ -15,6 +15,17 @@ test('requires an API key for cloud providers', () => {
   assert.throws(() => loadConfig({ LLM_PROVIDER: 'openai' }), /OPENAI_API_KEY/);
   assert.throws(() => loadConfig({ LLM_PROVIDER: 'anthropic' }), /ANTHROPIC_API_KEY/);
   assert.throws(() => loadConfig({ LLM_PROVIDER: 'xai' }), /XAI_API_KEY/);
+  assert.throws(() => loadConfig({ LLM_PROVIDER: 'gemini' }), /GEMINI_API_KEY/);
+});
+
+test('defaults the gemini provider to the free Google endpoint', () => {
+  const config = loadConfig({ LLM_PROVIDER: 'gemini', GEMINI_API_KEY: 'gemini-test' });
+  assert.equal(
+    config.geminiBaseUrl,
+    'https://generativelanguage.googleapis.com/v1beta/openai',
+  );
+  assert.equal(config.geminiModel, 'gemini-2.5-flash');
+  assert.equal(config.geminiApiKey, 'gemini-test');
 });
 
 test('defaults the xai provider to the x.ai endpoint and grok-4', () => {

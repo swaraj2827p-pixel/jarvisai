@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createAnthropicProvider } from '../src/llm/anthropic.ts';
+import { createGeminiProvider } from '../src/llm/gemini.ts';
 import { createOpenAiProvider } from '../src/llm/openai.ts';
 import { createXaiProvider } from '../src/llm/xai.ts';
 
@@ -132,6 +133,53 @@ test('xai adapter targets the x.ai chat completions endpoint', async () => {
     assert.equal(capturedBody.max_completion_tokens, undefined);
     assert.equal(result.content, 'At your service.');
     assert.equal(result.usage.totalTokens, 7);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('gemini adapter targets the Google OpenAI-compatible endpoint', async () => {
+  let capturedUrl = '';
+  let capturedHeaders: Record<string, string> = {};
+  let capturedBody: Record<string, unknown> = {};
+
+  globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+    capturedUrl = String(url);
+    capturedHeaders = init?.headers as Record<string, string>;
+    capturedBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return new Response(
+      JSON.stringify({
+        choices: [{ message: { content: 'Ready, sir.' }, finish_reason: 'stop' }],
+        usage: { prompt_tokens: 5, completion_tokens: 3, total_tokens: 8 },
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    );
+  }) as unknown as typeof fetch;
+
+  try {
+    const provider = createGeminiProvider({
+      apiKey: 'gemini-test',
+      baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+      model: 'gemini-2.5-flash',
+    });
+
+    const result = await provider.complete({
+      system: 'Be useful.',
+      messages: [{ role: 'user', content: 'hello' }],
+      tools: [],
+      maxTokens: 128,
+    });
+
+    assert.equal(provider.name, 'gemini');
+    assert.equal(
+      capturedUrl,
+      'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+    );
+    assert.equal(capturedHeaders.authorization, 'Bearer gemini-test');
+    assert.equal(capturedBody.model, 'gemini-2.5-flash');
+    assert.equal(capturedBody.max_tokens, 128);
+    assert.equal(result.content, 'Ready, sir.');
+    assert.equal(result.usage.totalTokens, 8);
   } finally {
     globalThis.fetch = originalFetch;
   }
