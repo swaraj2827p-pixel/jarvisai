@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export type LlmProviderName = 'mock' | 'openai' | 'anthropic';
+export type LlmProviderName = 'mock' | 'openai' | 'anthropic' | 'xai';
 
 export interface Config {
   port: number;
@@ -15,6 +15,9 @@ export interface Config {
   anthropicApiKey?: string;
   anthropicBaseUrl: string;
   anthropicModel: string;
+  xaiApiKey?: string;
+  xaiBaseUrl: string;
+  xaiModel: string;
   apiKey?: string;
   rateLimitMax: number;
   rateLimitWindowMs: number;
@@ -37,7 +40,7 @@ const EnvSchema = z
       .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
       .default('info'),
     BODY_LIMIT_BYTES: z.coerce.number().int().positive().default(262_144),
-    LLM_PROVIDER: z.enum(['mock', 'openai', 'anthropic']).default('mock'),
+    LLM_PROVIDER: z.enum(['mock', 'openai', 'anthropic', 'xai']).default('mock'),
     LLM_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
     OPENAI_API_KEY: optionalString,
     OPENAI_BASE_URL: z.string().trim().min(1).default('https://api.openai.com/v1'),
@@ -45,6 +48,9 @@ const EnvSchema = z
     ANTHROPIC_API_KEY: optionalString,
     ANTHROPIC_BASE_URL: z.string().trim().min(1).default('https://api.anthropic.com'),
     ANTHROPIC_MODEL: z.string().trim().min(1).default('claude-3-5-haiku-latest'),
+    XAI_API_KEY: optionalString,
+    XAI_BASE_URL: z.string().trim().min(1).default('https://api.x.ai/v1'),
+    XAI_MODEL: z.string().trim().min(1).default('grok-4'),
     JARVIS_API_KEY: optionalString,
     RATE_LIMIT_MAX: z.coerce.number().int().positive().default(60),
     RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
@@ -66,6 +72,13 @@ const EnvSchema = z
         code: 'custom',
         message: 'required when LLM_PROVIDER=anthropic',
         path: ['ANTHROPIC_API_KEY'],
+      });
+    }
+    if (env.LLM_PROVIDER === 'xai' && !env.XAI_API_KEY) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'required when LLM_PROVIDER=xai',
+        path: ['XAI_API_KEY'],
       });
     }
   });
@@ -93,6 +106,9 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     anthropicApiKey: value.ANTHROPIC_API_KEY,
     anthropicBaseUrl: value.ANTHROPIC_BASE_URL,
     anthropicModel: value.ANTHROPIC_MODEL,
+    xaiApiKey: value.XAI_API_KEY,
+    xaiBaseUrl: value.XAI_BASE_URL,
+    xaiModel: value.XAI_MODEL,
     apiKey: value.JARVIS_API_KEY,
     rateLimitMax: value.RATE_LIMIT_MAX,
     rateLimitWindowMs: value.RATE_LIMIT_WINDOW_MS,

@@ -12,6 +12,8 @@ export interface OpenAiProviderOptions {
   apiKey: string;
   baseUrl: string;
   model: string;
+  providerName?: string;
+  maxTokensField?: 'max_completion_tokens' | 'max_tokens';
 }
 
 interface OpenAiToolCall {
@@ -32,11 +34,13 @@ export function createOpenAiProvider({
   apiKey,
   baseUrl,
   model,
+  providerName = 'openai',
+  maxTokensField = 'max_completion_tokens',
 }: OpenAiProviderOptions): LlmProvider {
   const endpoint = `${baseUrl.replace(/\/+$/, '')}/chat/completions`;
 
   return {
-    name: 'openai',
+    name: providerName,
     async complete(request: CompletionRequest): Promise<CompletionResult> {
       const body: Record<string, unknown> = {
         model,
@@ -51,10 +55,10 @@ export function createOpenAiProvider({
         body.tool_choice = 'auto';
       }
       if (request.temperature !== undefined) body.temperature = request.temperature;
-      if (request.maxTokens !== undefined) body.max_completion_tokens = request.maxTokens;
+      if (request.maxTokens !== undefined) body[maxTokensField] = request.maxTokens;
 
       const payload = (await postJson(
-        'openai',
+        providerName,
         endpoint,
         { authorization: `Bearer ${apiKey}` },
         body,
@@ -63,13 +67,16 @@ export function createOpenAiProvider({
 
       const choice = payload.choices?.[0];
       if (!choice?.message) {
-        throw new ProviderError('openai', 'OpenAI returned an empty response.');
+        throw new ProviderError(
+          providerName,
+          `${providerName} returned an empty response.`,
+        );
       }
 
       const toolCalls: ToolCall[] = (choice.message.tool_calls ?? []).map((call) => ({
         id: call.id,
         name: call.function.name,
-        arguments: parseArguments(call.function.arguments),
+        arguments: parseArguments(call.function.arguments, providerName),
       }));
 
       return {
@@ -112,7 +119,7 @@ function toOpenAiMessage(message: ChatMessage): Record<string, unknown> {
   return { role: 'user', content: message.content };
 }
 
-function parseArguments(raw: string): Record<string, unknown> {
+function parseArguments(raw: string, providerName: string): Record<string, unknown> {
   if (!raw.trim()) return {};
   try {
     const parsed: unknown = JSON.parse(raw);
@@ -122,8 +129,8 @@ function parseArguments(raw: string): Record<string, unknown> {
     throw new Error('Tool arguments must be a JSON object.');
   } catch (error) {
     throw new ProviderError(
-      'openai',
-      `OpenAI returned invalid tool arguments: ${
+      providerName,
+      `${providerName} returned invalid tool arguments: ${
         error instanceof Error ? error.message : String(error)
       }`,
     );

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createAnthropicProvider } from '../src/llm/anthropic.ts';
 import { createOpenAiProvider } from '../src/llm/openai.ts';
+import { createXaiProvider } from '../src/llm/xai.ts';
 
 const originalFetch = globalThis.fetch;
 
@@ -89,6 +90,48 @@ test('openai adapter surfaces upstream failures', async () => {
         }),
       /HTTP 401/,
     );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('xai adapter targets the x.ai chat completions endpoint', async () => {
+  let capturedUrl = '';
+  let capturedBody: Record<string, unknown> = {};
+
+  globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+    capturedUrl = String(url);
+    capturedBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return new Response(
+      JSON.stringify({
+        choices: [{ message: { content: 'At your service.' }, finish_reason: 'stop' }],
+        usage: { prompt_tokens: 3, completion_tokens: 4, total_tokens: 7 },
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    );
+  }) as unknown as typeof fetch;
+
+  try {
+    const provider = createXaiProvider({
+      apiKey: 'xai-test',
+      baseUrl: 'https://api.x.ai/v1',
+      model: 'grok-4',
+    });
+
+    const result = await provider.complete({
+      system: 'Be useful.',
+      messages: [{ role: 'user', content: 'hello' }],
+      tools: [],
+      maxTokens: 64,
+    });
+
+    assert.equal(provider.name, 'xai');
+    assert.equal(capturedUrl, 'https://api.x.ai/v1/chat/completions');
+    assert.equal(capturedBody.model, 'grok-4');
+    assert.equal(capturedBody.max_tokens, 64);
+    assert.equal(capturedBody.max_completion_tokens, undefined);
+    assert.equal(result.content, 'At your service.');
+    assert.equal(result.usage.totalTokens, 7);
   } finally {
     globalThis.fetch = originalFetch;
   }

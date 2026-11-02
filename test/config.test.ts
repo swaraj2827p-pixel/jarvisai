@@ -14,6 +14,14 @@ test('defaults to the mock provider and a local server', () => {
 test('requires an API key for cloud providers', () => {
   assert.throws(() => loadConfig({ LLM_PROVIDER: 'openai' }), /OPENAI_API_KEY/);
   assert.throws(() => loadConfig({ LLM_PROVIDER: 'anthropic' }), /ANTHROPIC_API_KEY/);
+  assert.throws(() => loadConfig({ LLM_PROVIDER: 'xai' }), /XAI_API_KEY/);
+});
+
+test('defaults the xai provider to the x.ai endpoint and grok-4', () => {
+  const config = loadConfig({ LLM_PROVIDER: 'xai', XAI_API_KEY: 'xai-test' });
+  assert.equal(config.xaiBaseUrl, 'https://api.x.ai/v1');
+  assert.equal(config.xaiModel, 'grok-4');
+  assert.equal(config.xaiApiKey, 'xai-test');
 });
 
 test('treats empty optional values as missing', () => {
